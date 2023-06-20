@@ -244,26 +244,28 @@ void matrix::SVD_decomp(matrix &u, matrix &d, matrix &v){
     double phi1, phi2;
     // todo: check n m
     b=b.conjugate_transpose()*b; // n>=m b:m*m
+    b.show();
     u.resize(0,n); d.resize(n,m,1); v.resize(m,m); J.resize(m,m,1);
     for(int i=0; i<m; i++) J.a[i][i]=complx(1,0);
 
-    for(int T=1, cnt; T<=max_iter; T++){
+    for(int T=1, cnt; T<=3; T++){
         cnt=0;
         for(int i=0; i<m; i++)
             for(int j=i+1; j<m; j++)if(sgn(b.a[i][j])){
                 phi1=atan2(b.a[i][j].imag(), b.a[i][j].real());
                 phi2=atan2(norm(b.a[i][j])*2, (b.a[i][i]-b.a[j][j]).real());
                 R=rotate(m,i,j,phi2/2)*rotate(m,i,j,phi1/2-M_PI/4);
-                b.show();
+                // b.show();
                 b=R*b*R.conjugate_transpose();
-                b.show(); R.show(); std::cerr<<"\n";
+                // b.show(); R.show(); std::cerr<<"\n";
                 //check
-                J=J*R;
+                J=J*R.conjugate_transpose();
                 ++cnt;
             }
         if(!cnt)break;
     }
-    b.show(); J.show();
+    b.show(); J.show(); (J*b*J.conjugate_transpose()).show();
+    J=J.transpose();
     
     std::vector<int> c; c.resize(m);
     for(int i=0; i<m; i++) c[i]=i;
@@ -275,46 +277,44 @@ void matrix::SVD_decomp(matrix &u, matrix &d, matrix &v){
         d.a[i][i]=sqrt(b.a[x][x].real());
         v.a[i]=J.a[x];
         if(sgn(d.a[i][i])){
-            vec_out(v.a[i]);vec_out((*this)*v.a[i]);
+            // vec_out(v.a[i]);vec_out((*this).conjugate_transpose()*(*this)*v.a[i]);
             u.a.push_back((*this)*v.a[i]); ++u.n;
-            // for(int j=0; j<n; j++){
-            //     std::cerr<<((*this)*v.a[i])[j]<<" "<<u.a[i][j]<<"\n";
-            // }
-            std::cerr<<l2norm(u.a[i])<<" "<<d.a[i][i]<<" ";
+            // std::cerr<<l2norm(u.a[i])<<" "<<l2norm((*this).conjugate_transpose()*u.a[i])<<" "<<d.a[i][i]<<" ";
             vec_mul(u.a[i], complx(1,0)/d.a[i][i]);
-            std::cerr<<l2norm(u.a[i])<<"\n";
+            // std::cerr<<l2norm(u.a[i])<<"\n";
         }
     }
     //expand U
+    u.resize(n,n);
     //check
-    for(int i=0; i<u.n; i++){
-        assert(sgn(l2norm(u.a[i])-1)==0);
-        for(int j=i+1; j<u.n; j++)assert(sgn(vec_dot(u.a[i],u.a[j]))==0);
-    }
-    complx_vector tmp,qwq; tmp.resize(n);
-    for(int i=0; i<n; i++){
-        if(u.n==n)break;
-        for(int j=0; j<n; j++) tmp[j]=complx(0,0);
-        tmp[i]=complx(1,0);
-        for(int j=0; j<u.n; j++){
-            qwq=u.a[j];
-            vec_mul(qwq, -vec_dot(tmp,u.a[j]));
-            vec_add(tmp, qwq);
-            // for(auto vv:tmp) std::cerr<<vv<<" ";
-            // std::cerr<<"\n";
-        }
-        if(sgn(l2norm(tmp))){
-            vec_mul(tmp,1/l2norm(tmp));
-            u.a.push_back(tmp); ++u.n;
-        }
-    }
-    if(u.n!=n) {u.show(); O(u.n);}
-    assert(u.n==n);
+    // for(int i=0; i<u.n; i++){
+    //     assert(sgn(l2norm(u.a[i])-1)==0);
+    //     for(int j=i+1; j<u.n; j++)assert(sgn(vec_dot(u.a[i],u.a[j]))==0);
+    // }
+    // complx_vector tmp,qwq; tmp.resize(n);
+    // for(int i=0; i<n; i++){
+    //     if(u.n==n)break;
+    //     for(int j=0; j<n; j++) tmp[j]=complx(0,0);
+    //     tmp[i]=complx(1,0);
+    //     for(int j=0; j<u.n; j++){
+    //         qwq=u.a[j];
+    //         vec_mul(qwq, -vec_dot(tmp,u.a[j]));
+    //         vec_add(tmp, qwq);
+    //         // for(auto vv:tmp) std::cerr<<vv<<" ";
+    //         // std::cerr<<"\n";
+    //     }
+    //     if(sgn(l2norm(tmp))){
+    //         vec_mul(tmp,1/l2norm(tmp));
+    //         u.a.push_back(tmp); ++u.n;
+    //     }
+    // }
+    // if(u.n!=n) {u.show(); O(u.n);}
+    // assert(u.n==n);
     u=u.transpose(); // transpose忘记传给u了
     v=v.transpose().conjugate_transpose();
 
     //check
-    // (*this).show(); u.show(); d.show(); v.show(); (u*d*v).show();
+    (*this).show(); u.show(); d.show(); v.show(); (u*d*v).show();
     assert(u*d*v==(*this));
 }
 

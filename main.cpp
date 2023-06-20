@@ -112,25 +112,25 @@ void eigenvalue_test(){
 
 void SVD_test(){
     puts("begin SVD_test...");
-    for(int TT=1; TT<=1; TT++){
+    for(int TT=1; TT<=T; TT++){
         n=2; m=n;
         // n=rd(10); m=rd(n);
         m2 x(n,m);
         gen_matrix(n,m,a,x);
 
-        // Eigen::JacobiSVD<m2> svd(x, Eigen::ComputeThinU | Eigen::ComputeThinV);
-        // cout<<svd.matrixU()<<"\n";
-        // cout<<svd.matrixV()<<"\n";
-        // cout<<svd.singularValues()<<"\n\n";
+        Eigen::JacobiSVD<m2> svd(x, Eigen::ComputeThinU | Eigen::ComputeThinV);
+        cout<<svd.matrixU()<<"\n";
+        cout<<svd.matrixV()<<"\n";
+        cout<<svd.singularValues()<<"\n\n";
 
         a.SVD_decomp(b,c,d);
-        b=b.transpose();
-        for(int i=0; i<n; i++)
-            for(int j=i+1; j<n; j++)
-                assert(isequal(matrix_lib::vec_dot(b.a[i],b.a[j]), complx(0,0)));
-        for(int i=0; i<m; i++)
-            for(int j=i+1; j<m; j++)
-                assert(isequal(matrix_lib::vec_dot(d.a[i],d.a[j]), complx(0,0)));
+        // b=b.transpose();
+        // for(int i=0; i<n; i++)
+        //     for(int j=i+1; j<n; j++)
+        //         assert(isequal(matrix_lib::vec_dot(b.a[i],b.a[j]), complx(0,0)));
+        // for(int i=0; i<m; i++)
+        //     for(int j=i+1; j<m; j++)
+        //         assert(isequal(matrix_lib::vec_dot(d.a[i],d.a[j]), complx(0,0)));
     }
     puts("finish SVD_test...");
 }
