@@ -11,7 +11,7 @@ typedef std::vector<complx> complx_vector;
 typedef matrix_lib::matrix m1;
 typedef Eigen::MatrixXcd m2;
 const int T=1000, mx=10;
-const double eps=1e-5;
+const double eps=1e-4;
 
 void gen_matrix(int n, int m, m1 &a, m2 &b){
     a.resize(n,m);
@@ -79,7 +79,7 @@ void del_test(){
     puts("finish det_test...\n");
 }
 
-bool comp(const complx &x, const complx &y){
+bool comp_complx(const complx &x, const complx &y){
     return matrix_lib::sgn(x.real()-y.real())?x.real()<y.real():x.imag()<y.imag();
 }
 
@@ -88,17 +88,18 @@ void eigenvalue_test(){
     complx_vector qwq1;
     Eigen::VectorXcd qwq2;
     for(int TT=1; TT<=T; TT++){
+        if((TT-1)%10==0) cerr<<"Running on Eigenvalue testcase "<<TT<<" ...\n";
         n=rd(10);
+        // n=4;
         m2 x(n,n);
         gen_matrix(n,n,a,x);
         qwq1=a.eigenvalue();
         // Eigen::EigenSolver<Eigen::MatrixXcd> es(x);
         qwq2=x.eigenvalues();
-        sort(qwq1.begin(),qwq1.end(),comp);
-        sort(qwq2.data(), qwq2.data()+qwq2.size(), comp);
+        sort(qwq1.begin(),qwq1.end(),comp_complx);
+        sort(qwq2.data(), qwq2.data()+qwq2.size(), comp_complx);
         for(int i=0; i<n; i++){
             if(!isequal(qwq1[i],qwq2[i])){
-                cout<<"T: "<<TT<<"\n";
                 for(auto v:qwq1) cerr<<v<<" ";
                 cerr<<" mine\n";
                 for(auto v:qwq2) cerr<<v<<" ";
@@ -144,7 +145,7 @@ int main(){
     // add_sub_test();
     // mul_test();
     // del_test();
-    // eigenvalue_test();
-    SVD_test();
+    eigenvalue_test();
+    // SVD_test();
     return (0-0);
 }

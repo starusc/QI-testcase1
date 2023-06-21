@@ -7,7 +7,7 @@ typedef std::complex<double> complx;
 typedef std::vector<complx> complx_vector;
 typedef std::vector<complx_vector> complx_matrix;
 const double eps=1e-8;
-const int max_iter=1000;
+const int max_iter=10000;
 
 class matrix{
     public:
@@ -22,6 +22,7 @@ class matrix{
         bool operator ==(const matrix &b);
         matrix operator +(const matrix &b);
         matrix operator -(const matrix &b);
+        matrix operator *(const complx &x);
         matrix operator *(const matrix &b);
         complx_vector operator *(const complx_vector &b);
         matrix transpose();
@@ -40,9 +41,12 @@ void matrix::resize(int nn, int mm, int fl){
     n=nn; m=mm;
     a.resize(n);
     for(int i=0; i<n; i++) a[i].resize(m);
-    if(fl){
+    if(fl&1){
         for(int i=0; i<n; i++)
             for(int j=0; j<m; j++) a[i][j]=complx(0,0);
+    }
+    if(fl&2){
+        for(int i=0; i<n; i++) a[i][i]=complx(1,0);
     }
 }
 
@@ -128,6 +132,13 @@ complx_vector matrix::operator *(const complx_vector &b){
     return c;
 }
 
+matrix matrix::operator *(const complx &x){
+    matrix c(*this);
+    for(int i=0; i<n; i++)
+        for(int j=0; j<m; j++) c.a[i][j]*=x;
+    return c;
+}
+
 matrix matrix::transpose(){
     matrix c; c.resize(m,n);
     for(int i=0; i<n; i++)
@@ -190,24 +201,56 @@ void vec_out(const complx_vector &x){
     for(auto v:x) std::cerr<<v<<" ";
     std::cerr<<"vecout\n";
 }
+void vec_clear(complx_vector &x, int n){
+    x.resize(n);
+    for(int i=0; i<n; i++) x[i]=complx(0,0);
+}
+bool vec_normalize(complx_vector &x){
+    double qwq=l2norm(x);
+    if(sgn(qwq)) {vec_mul(x,1/qwq); return true;}
+    else {vec_clear(x,x.size()); return false;}
+}
 
-void matrix::QR_decomp(matrix &q, matrix &r){
-    complx_vector tmp;
-    q=(*this).transpose(); r.resize(n,n);
-    // q.show();
-    for(int i=0; i<m; i++){
-        r.a[i][i]=l2norm(q.a[i]);
-        vec_mul(q.a[i], complx(1,0)/r.a[i][i]);
-        for(int j=i+1; j<m; j++){
-            r.a[i][j]=vec_dot(q.a[i], q.a[j]);
-            tmp=q.a[i]; vec_mul(tmp, -r.a[i][j]);
-            vec_add(q.a[j], tmp);
-        }
-        for(int j=0; j<i; j++) r.a[i][j]=0;
+bool householder(const matrix &x, matrix &h, int i, int k){
+    complx_vector w; vec_clear(w,x.n);
+    h.resize(x.n,x.n,3);
+    for(int j=k; j<x.n; j++) w[j]=x.a[j][i];
+    if(sgn(norm(w[k]))) w[k]-=l2norm(w)/sqrt(norm(w[k]))*w[k]; // 复数与实数不一样
+    else w[k]-=l2norm(w);
+    if(!vec_normalize(w))return false;
+    for(int u=i; u<x.n; u++)
+        for(int v=i; v<x.n; v++) h.a[u][v]-=complx(2,0)*w[u]*conj(w[v]);
+    return true;
+}
+
+void hessenberg(matrix &x){
+    matrix h;
+    for(int i=0; i<x.n-2; i++){
+        if(!householder(x,h,i,i+1)) continue;
+        x=h*x*h.conjugate_transpose();
     }
-    q=q.transpose();
-    // q.show(); r.show(); (q*r).show();
     //check
+    // for(int i=0; i<x.n; i++)
+    //     for(int j=0; j<i-1; j++)assert(sgn(x.a[i][j])==0);
+    // x.show();
+}
+
+void matrix::QR_decomp(matrix &q, matrix &r){ // householder
+    matrix h;
+    r=*this; q.resize(n,n,3);
+    for(int i=0; i<n-1; i++){
+        if(!householder(r,h,i,i)) continue;
+        r=h*r;
+        q=q*h.conjugate_transpose();
+    }
+
+    //check
+    // for(int i=0; i<n; i++){
+    //     assert(sgn(l2norm(q.a[i])-1)==0);
+    //     for(int j=i+1; j<i; j++)
+    //         assert(sgn(vec_dot(q.a[i],q.a[j]))==0);
+    // }
+    // if(!(q*r==(*this))) {std::cerr<<"\n"; q.show(); r.show(); (q*r).show(); (*this).show();}
     assert(q*r==(*this));
 }
 
@@ -216,17 +259,39 @@ complx_vector matrix::eigenvalue(){
         std::cerr<<"Error! Eigenvalue operation: matrix is not square.\n";
         exit(0);
     }
-    complx tmp(0,0);
-    matrix ak(*this), q, r;
-    for(int T=1; T<=max_iter; T++){
-        // tmp=ak.a[n-1][n-1];
-        // for(int i=0; i<n; i++) ak.a[i][i]-=tmp;
-        ak.QR_decomp(q, r);
-        ak=r*q;
-        // for(int i=0; i<n; i++) ak.a[i][i]+=tmp;
-    }
+    matrix ak(*this), M, q, r;
     complx_vector ans;
+    complx tr, dt;
+    int nn=n;
+    hessenberg(ak);
+    // ak.show();
+    for(int T=1; T<=max_iter; T++){
+        if(n==0)break;
+        if(n==1){ans.push_back(ak.a[0][0]);n=0;break;}
+        // M=H^2-(mu1+mu2)H+mu1mu2I mu1+mu2=-b/a mu1mu2=c/a
+        tr=ak.a[n-2][n-2]+ak.a[n-1][n-1];
+        dt=ak.a[n-2][n-2]*ak.a[n-1][n-1]-ak.a[n-2][n-1]*ak.a[n-1][n-2];
+        M=ak*ak-ak*tr;
+        for(int i=0; i<n; i++)M.a[i][i]+=dt;
+        M.QR_decomp(q, r);
+        ak=q.conjugate_transpose()*ak*q;
+        if(sgn(q.a[n-1][n-1]-complx(1,0))==0&&sgn(q.a[n-2][n-2]-complx(1,0))==0){
+            ans.push_back((tr+sqrt(tr*tr-complx(4,0)*dt))/complx(2,0));
+            ans.push_back((tr-sqrt(tr*tr-complx(4,0)*dt))/complx(2,0));
+            n-=2;
+            ak.resize(n,n);
+        }
+        while(n>1&&sgn(ak.a[n-1][n-2])==0){
+            ans.push_back(ak.a[n-1][n-1]);
+            --n;
+            ak.resize(n,n);
+        }
+        // q.show(); ak.show(); std::cerr<<"\n";
+        // ak.QR_decomp(q,r); ak=r*q;
+    }
+    // O(n); ak.show();
     for(int i=0; i<n; i++) ans.push_back(ak.a[i][i]);
+    n=nn;
     return ans;
 }
 
@@ -235,8 +300,7 @@ matrix rotate(int n, int p, int q, double y, double x){ // tan(2theta)=y/x
     double s=sqrt((1-x)/2), c=sqrt((1+x)/2);
     if(sgn(y)<0) s=-s;
     
-    matrix ret; ret.resize(n,n,1);
-    for(int i=0; i<n; i++) ret.a[i][i]=complx(1,0);
+    matrix ret; ret.resize(n,n,3);
     ret.a[p][p]=ret.a[q][p]=complx(c,-s)/sqrt(2.0);
     ret.a[p][q]=complx(-c,-s)/sqrt(2.0);
     ret.a[q][q]=complx(c,s)/sqrt(2.0);
@@ -253,8 +317,7 @@ void matrix::SVD_decomp(matrix &u, matrix &d, matrix &v){
 
     b=A.conjugate_transpose()*A; // n>=m b:m*m
     // b.show();
-    u.resize(0,n); d.resize(n,m,1); v.resize(m,m); J.resize(m,m,1);
-    for(int i=0; i<m; i++) J.a[i][i]=complx(1,0);
+    u.resize(0,n); d.resize(n,m,1); v.resize(m,m); J.resize(m,m,3);
 
     for(int T=1, cnt; T<=max_iter; T++){
         cnt=0;
@@ -299,8 +362,7 @@ void matrix::SVD_decomp(matrix &u, matrix &d, matrix &v){
             vec_mul(qwq, -vec_dot(tmp,u.a[j]));
             vec_add(tmp, qwq);
         }
-        if(sgn(l2norm(tmp))){
-            vec_mul(tmp,1/l2norm(tmp));
+        if(vec_normalize(tmp)){
             u.a.push_back(tmp); ++u.n;
         }
     }
