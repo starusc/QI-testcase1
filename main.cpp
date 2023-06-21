@@ -142,10 +142,10 @@ void SVD_test(){
 }
 
 int main(){
-    // add_sub_test();
-    // mul_test();
-    // del_test();
+    add_sub_test();
+    mul_test();
+    del_test();
+    SVD_test();
     eigenvalue_test();
-    // SVD_test();
     return (0-0);
 }

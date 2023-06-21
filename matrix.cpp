@@ -269,7 +269,7 @@ complx_vector matrix::eigenvalue(){
         if(n==0)break;
         if(n==1){ans.push_back(ak.a[0][0]);n=0;break;}
         // M=H^2-(mu1+mu2)H+mu1mu2I mu1+mu2=-b/a mu1mu2=c/a
-        tr=ak.a[n-2][n-2]+ak.a[n-1][n-1];
+        /*tr=ak.a[n-2][n-2]+ak.a[n-1][n-1];
         dt=ak.a[n-2][n-2]*ak.a[n-1][n-1]-ak.a[n-2][n-1]*ak.a[n-1][n-2];
         M=ak*ak-ak*tr;
         for(int i=0; i<n; i++)M.a[i][i]+=dt;
@@ -285,9 +285,9 @@ complx_vector matrix::eigenvalue(){
             ans.push_back(ak.a[n-1][n-1]);
             --n;
             ak.resize(n,n);
-        }
+        }*/
         // q.show(); ak.show(); std::cerr<<"\n";
-        // ak.QR_decomp(q,r); ak=r*q;
+        ak.QR_decomp(q,r); ak=r*q;
     }
     // O(n); ak.show();
     for(int i=0; i<n; i++) ans.push_back(ak.a[i][i]);
